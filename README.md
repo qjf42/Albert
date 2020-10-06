@@ -1,5 +1,5 @@
 ## 1. 介绍
-简单的聊天机器人服务，目前只支持单轮，可通过配置简单模板增加自定义意图，也包含较完整的问答类服务（TODO），
+简单的聊天机器人服务，目前只支持单轮（+多轮闲聊），可通过配置简单模板增加自定义意图，也包含较完整的问答类服务（TODO），
 模型部分见[Albert_model](https://github.com/qjf42/Albert_model)
 
 ## 2. 目录结构
@@ -32,7 +32,14 @@
     ```
     ./start.sh
     ```
-    端口：5510(test)/5500 (prod)
+    端口：5510(test)/5500(prod)
+4. 启动redis
+    - redis用于存储session
+5. 启动QA部分
+   - 参考[`qa/README.md`](https://github.com/qjf42/Albert/qa)
+6. 启动模型服务
+   - 参考[Albert_model](https://github.com/qjf42/Albert_model)
+
 
 ### 3.2 调用
 具体调用的接口参考`dumb_bot.py`中的定义，根据不同的请求类型，可以有不同的参数配置

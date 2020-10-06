@@ -67,9 +67,10 @@ class LexicalParser:
 
     def parse(self, req: BaseRequest) -> LexicalResult:
         tokens = self.wordseg.seg(req.utterance)
+        entities = []
         search_tokens = self.wordseg.seg_search(req.utterance)
         keywords = [tok.word for tok in tokens if not self._is_stopword(tok.pos)]
-        return LexicalResult(tokens, search_tokens, keywords)
+        return LexicalResult(tokens, entities, search_tokens, keywords)
 
     def _is_stopword(self, pos):
         """

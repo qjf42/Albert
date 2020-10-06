@@ -3,13 +3,14 @@
 
 import flask
 
-from .conf import NLU_CONF, BOT_LOG_CONF, NLU_LOG_CONF, SKILL_LOG_CONF
+from .conf import NLU_CONF, BOT_LOG_CONF, NLU_LOG_CONF, SKILL_LOG_CONF, SESSION_CONF, REDIS_CONF
+from .enums import EnumRequestSrcType, EnumResponseError
+from .interfaces import BaseRequest, RequestFactory, BotResponse, Session
 from .nlu import LexicalParser, TemplateIntentSlotParser
 from .rank import IntentRank
 from .router import Router
+from .dm import SessionManager
 from .utils import log_utils
-from .enums import EnumRequestSrcType, EnumResponseError
-from .interfaces import BaseRequest, RequestFactory, BotResponse
 
 
 class DumbBot:
@@ -18,6 +19,7 @@ class DumbBot:
         self.lexical_parser = LexicalParser(NLU_CONF['lexical'], NLU_LOG_CONF)
         self.template_parser = TemplateIntentSlotParser(NLU_CONF['template'], NLU_LOG_CONF)
         self.intent_rank = IntentRank()
+        self.session_mgr = SessionManager(SESSION_CONF, REDIS_CONF)
         # skills
         self.router = Router(SKILL_LOG_CONF)
 
@@ -51,15 +53,22 @@ class DumbBot:
         if req.debug:
             resp.add_debug('top_intent_slots', top_intent_slots)
 
+        # DM
+        session = self.session_mgr.get(req.src_type, req.chatgroup_id)
+        if req.debug:
+            resp.add_debug('session', session.to_dict())
+
         # Skill
-        top_intent = top_intent_slots.intent if top_intent_slots is not None else None
-        skill = self.router.route(top_intent_slots.intent)
-        skill_resp = skill(req, lexical_res, top_intent_slots)
-        if not skill_resp.success:
+        top_intent = top_intent_slots.intent if top_intent_slots else None
+        skill = self.router.route(top_intent)
+        skill_resp = skill(req, lexical_res, top_intent_slots, session)
+        if skill_resp.success:
+            # 更新session
+            self.session_mgr.set(req.src_type, req.chatgroup_id, session)
+            return resp.set_response(**skill_resp.response)
+        else:
             return resp.set_error(EnumResponseError.SKILL_ERROR, skill_resp.err_msg)\
                        .set_response('你说的太高端了，我听不懂')
-        else:
-            return resp.set_response(**skill_resp.response)
 
 
 '''FLASK'''
@@ -122,7 +131,7 @@ def nlu():
 def chat_wx():
     param_options = {
         'msg': True,
-        'chatroom_id': True,
+        'chatgroup_id': True,
         'user_id': True,
         'user_name': True,
         'debug': False,

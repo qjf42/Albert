@@ -4,9 +4,11 @@ from .env import ENV
 from ..enums import EnumSkill, EnumEnv
 
 
-qa_service_port = '5501' if ENV == EnumEnv.PROD else '5511'
 QA_CONF = {
-    'qa_service_url': f'http://127.0.0.1:{qa_service_port}/ask'
+    'qa_service': {
+        'ip': '127.0.0.1',
+        'port': 5501 if ENV == EnumEnv.PROD else 5511,
+    },
 }
 
 SKILL_CONF_MAP = {

@@ -10,6 +10,7 @@ __all__ = ['BaseRequest', 'RequestFactory']
 
 
 class BaseRequest:
+    src_type = None
     def __init__(self, msg: str,
                  user_id: str = None, user_name: str = None, chatgroup_id = None,
                  debug: bool = False):

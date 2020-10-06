@@ -39,7 +39,7 @@ class LexicalResult:
         return cls(
             tokens=[Token(**p) for p in dic['tokens']],
             entities=[Entity(**p) for p in dic.get('entities', [])] or None,
-            search_tokens=[Entity(**p) for p in dic.get('search_tokens', [])] or None,
+            search_tokens=[Token(**p) for p in dic.get('search_tokens', [])] or None,
             keywords=dic.get('keywords', []) or None,
         )
 
@@ -97,5 +97,38 @@ class SingleTurnNLUResult:
         return cls(
             parser_name=dic['parser_name'],
             intent_slots_list=[IntentSlots.from_dict(p) for p in dic.get('intent_slots_list', [])],
+            debug=dic.get('debug', {}),
+        )
+
+
+@dataclass
+class MultiTurnNLUResult:
+    '''TODO 多轮对话NLU结果'''
+    intent_slots_dic: Dict[EnumIntent, IntentSlots] = field(default_factory=dict)
+    debug: Dict[str, Any] = field(default_factory=dict)
+
+    def get_intent_slots(self, intent: EnumIntent) -> IntentSlots:
+        return self.intent_slots_dic.get(intent)
+
+    def update_intent_slots(self, intent_slots: IntentSlots):
+        self.intent_slots_dic[intent_slots.intent] = intent_slots
+        return self
+
+    def remove(self, intent: EnumIntent):
+        del self.intent_slots[intent]
+        return self
+
+    def add_debug(self, k, v, append=False):
+        if append:
+            self.debug.setdefault(k, []).append(v)
+        else:
+            self.debug[k] = v
+        return self
+
+    @classmethod
+    def from_dict(cls, dic: Dict[str, Any]):
+        intent_slots_list = [IntentSlots.from_dict(p) for p in dic.get('intent_slots_list', [])]
+        return cls(
+            intent_slots_dic={v.intent: v for v in intent_slots_list},
             debug=dic.get('debug', {}),
         )
