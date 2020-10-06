@@ -1,9 +1,10 @@
 # coding: utf-8
 
-from ..base import ProcessorBase
-from ...enums import EnumProcessorType
-from ...interfaces import RetrievalData, ProcessorResult
-from ....interfaces import LexicalResult
+from typing import List
+from .base import ProcessorBase
+from ..enums import EnumProcessorType
+from ..interfaces import RetrievalData, ProcessorResult
+from ...interfaces import LexicalResult
 
 
 class ExtractiveKBQA(ProcessorBase):
@@ -13,6 +14,7 @@ class ExtractiveKBQA(ProcessorBase):
 
     def process(self,
                 query: str, query_lexical_res: LexicalResult,
-                retrieval_data: RetrievalData) -> ProcessorResult:
+                retrieval_data: RetrievalData,
+                history: List[str] = None) -> ProcessorResult:
         kb_graph = retrieval_data.data
         return ProcessorResult(self.res_type, 'model', kb_graph.entities[0], 1.)

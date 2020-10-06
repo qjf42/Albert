@@ -1,16 +1,29 @@
 #coding: utf-8
 
-from typing import List
+from typing import Dict, List
 
 import flask
 
 from ..enums import EnumResponseError
 from ..utils import log_utils
-from .conf import RETRIEVER_CONF, PROCESSOR_CONF
-from .enums import EnumRetrievalSource
+from .conf import RETRIEVER_CONF, PROCESSOR_CONF, LOG_CONF
+from .enums import EnumRetrievalSource, EnumProcessorType
 from .interfaces import QAResponse, Request
-from .retrieval import RetrieverBase, ANNRetriever, BaiduRetriever, ESRetriever, KBRetriever
-from .processing import ProcessorBase, SemanticMatcher, Summarizer, ExtractiveKBQA, ExtractiveMRC
+from .retrieval import (
+    RetrieverBase,
+    ANNRetriever,
+    BaiduRetriever,
+    ESRetriever,
+    KBRetriever
+)
+from .processing import (
+    ProcessorBase,
+    Seq2Seq,
+    SemanticMatcher,
+    Summarizer,
+    ExtractiveKBQA,
+    ExtractiveMRC
+)
 
 
 class QAService:
@@ -19,20 +32,21 @@ class QAService:
 
         # 召回
         self.retrievers: List[RetrieverBase] = [
-            ESRetriever(RETRIEVER_CONF['ES']),
-            ANNRetriever(RETRIEVER_CONF['ANN']),
-            KBRetriever(RETRIEVER_CONF['KB']),
-            BaiduRetriever(RETRIEVER_CONF['Baidu']),
+            # ESRetriever(RETRIEVER_CONF['ES']),
+            # ANNRetriever(RETRIEVER_CONF['ANN']),
+            # KBRetriever(RETRIEVER_CONF['KB']),
+            # BaiduRetriever(RETRIEVER_CONF['Baidu']),
         ]
 
         # 处理
-        self.semantic_matcher = SemanticMatcher(PROCESSOR_CONF['matching'])
-        self.summarizer = Summarizer(PROCESSOR_CONF['summarizer'])
-        self.extractive_kbqa = ExtractiveKBQA(PROCESSOR_CONF['KBQA'])
-        self.extractive_mrc = ExtractiveMRC(PROCESSOR_CONF['MRC'])
+        self.semantic_matcher = SemanticMatcher(PROCESSOR_CONF[EnumProcessorType.MATCHING])
+        self.summarizer = Summarizer(PROCESSOR_CONF[EnumProcessorType.EXTRACTIVE_SUMMARIZER])
+        self.extractive_kbqa = ExtractiveKBQA(PROCESSOR_CONF[EnumProcessorType.KBQA_ENTITY])
+        self.extractive_mrc = ExtractiveMRC(PROCESSOR_CONF[EnumProcessorType.MRC_SPAN])
+        self.s2s_processor = Seq2Seq(PROCESSOR_CONF[EnumProcessorType.S2S])
 
         # 召回到处理的映射
-        self.retrieve2process = {
+        self.retrieve2process: Dict[EnumRetrievalSource, ProcessorBase] = {
             EnumRetrievalSource.ANN: self.semantic_matcher,
             EnumRetrievalSource.TERM: self.semantic_matcher,
             EnumRetrievalSource.KB: self.extractive_kbqa,
@@ -42,6 +56,7 @@ class QAService:
     def ask(self, req: Request) -> QAResponse:
         query = req.query
         lexical_res = req.lexical_res
+        history = req.history
         resp = QAResponse()
         if req.debug:
             resp.add_debug('request', req.to_dict())
@@ -58,22 +73,29 @@ class QAService:
                 # 处理
                 processor = self.retrieve2process[retrieved_data.src_type]
                 try:
-                    proc_res = processor.process(retrieved_data, lexical_res)
+                    proc_res = processor.process(query, lexical_res, retrieved_data)
                     if req.debug:
                         resp.debug = proc_res.debug
                     return resp.set_response(proc_res.answer)\
                                .set_skill_result(proc_res.detail)
                 except Exception as e:
                     continue
-        return resp.set_error(EnumResponseError.SKILL_ERROR)\
-                   .set_response('啥也找不到...')
+        # 闲聊兜底
+        try:
+            proc_res = self.s2s_processor.process(query, history=history)
+            if req.debug:
+                resp.debug = proc_res.debug
+            return resp.set_response(proc_res.answer)\
+                       .set_skill_result(proc_res.detail)
+        except Exception as e:
+            return resp.set_error(EnumResponseError.SKILL_ERROR, f'兜底错误，啥也找不到..., {e}')
 
 
 '''FLASK'''
 
 QA_SERVICE = QAService()
 app = flask.Flask(__name__)
-log_utils.set_app_logger(app.logger, **QA_LOG_CONF)
+log_utils.set_app_logger(app.logger, **LOG_CONF)
 
 
 def parse_req(options):
@@ -93,16 +115,17 @@ def ask():
     param_options = {
         'query': True,
         'lexical_res': True,
+        'history': False,
         'debug': False,
     }
     try:
         params = parse_req(param_options)
+        req = Request(**params)
     except Exception as e:
         resp = QAResponse().set_error(EnumResponseError.INVALID_PARAMS, str(e))
-        return flask.jsonify(resp.to_dict())
+        return flask.jsonify(resp)
     try:
-        req = Request(**params) 
         resp = QA_SERVICE.ask(req)
     except Exception as e:
         resp = QAResponse().set_error(EnumResponseError.UNKNOWN_ERROR, str(e))
-    return flask.jsonify(resp.to_dict())
+    return flask.jsonify(resp)

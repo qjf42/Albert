@@ -1,15 +1,15 @@
 # coding: utf-8
 
-from ..base import ProcessorBase
-from ...enums import EnumProcessorType
-from ...interfaces import RetrievalData, ProcessorResult
-from ....interfaces import LexicalResult
+from .base import ProcessorBase
+from ..enums import EnumProcessorType
+from ..interfaces import RetrievalData, ProcessorResult
+from ...interfaces import LexicalResult
 
 
-class SemanticMatcher(ProcessorBase):
+class Summarizer(ProcessorBase):
     def __init__(self, conf):
         super().__init__(conf)
-        self.res_type = EnumProcessorType.MATCHING
+        self.res_type = EnumProcessorType.EXTRACTIVE_SUMMARIZER
 
     def process(self,
                 query: str, query_lexical_res: LexicalResult,

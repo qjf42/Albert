@@ -1,6 +1,7 @@
 # coding: utf-8
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from typing import List
 from ...interfaces import LexicalResult
 
 
@@ -8,6 +9,7 @@ from ...interfaces import LexicalResult
 class Request:
     query: str
     lexical_res: LexicalResult
+    history: List[str] = field(default_factory=list)
     debug: bool = False
 
     def __post_init__(self):
