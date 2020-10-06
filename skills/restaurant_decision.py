@@ -3,7 +3,7 @@
 
 import random
 from .base import BaseSkill
-from ..interfaces import BaseRequest, SkillResponse, LexicalResult, IntentSlots
+from ..interfaces import BaseRequest, SkillResponse, LexicalResult, IntentSlots, Session
 
 
 class RestaurantDecisionSkill(BaseSkill):
@@ -21,7 +21,8 @@ class RestaurantDecisionSkill(BaseSkill):
     def __call__(self,
                  req: BaseRequest,
                  lexical_res: LexicalResult,
-                 intent_slots: IntentSlots) -> SkillResponse:
+                 intent_slots: IntentSlots,
+                 session: Session) -> SkillResponse:
         choice = self._random_choice()
         return SkillResponse().set_score(1).set_response(choice)
 

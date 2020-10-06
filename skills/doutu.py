@@ -6,7 +6,7 @@ import numpy as np
 import parsel
 from .base import BaseSkill
 from ..enums import EnumResponseType, EnumResponseError
-from ..interfaces import BaseRequest, SkillResponse, LexicalResult, IntentSlots
+from ..interfaces import BaseRequest, SkillResponse, LexicalResult, IntentSlots, Session
 from ..utils.downloader import Downloader
 from ..utils.time_utils import DateTime
 
@@ -20,7 +20,8 @@ class DoutuSkill(BaseSkill):
     def __call__(self,
                  req: BaseRequest,
                  lexical_res: LexicalResult,
-                 intent_slots: IntentSlots) -> SkillResponse:
+                 intent_slots: IntentSlots,
+                 session: Session) -> SkillResponse:
         ret = SkillResponse()
         query = intent_slots.get_slot_values('query')[0]
         try:
